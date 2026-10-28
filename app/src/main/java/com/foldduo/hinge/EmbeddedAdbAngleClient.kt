@@ -81,7 +81,7 @@ class EmbeddedAdbAngleClient(
                 current.probe.source.readUtf8Line() ?: error("private sensor probe stopped")
             }
         } catch (error: Throwable) {
-            terminate(current, "Hinge sensor probe disconnected: ${safeMessage(error)}")
+            if (session === current) onStatus("Hinge probe failed: ${safeMessage(error)}")
         }
     }
 
@@ -117,7 +117,7 @@ class EmbeddedAdbAngleClient(
         } catch (error: Throwable) {
             val detail = recentOutput.joinToString(" | ").takeLast(900)
             val reason = safeMessage(error)
-            terminate(current, "Screen capture disconnected: $reason" +
+            if (session === current) onStatus("Screen capture unavailable (hinge monitoring continues): $reason" +
                 if (detail.isNotBlank()) " — $detail" else " (no subprocess output)")
         }
     }
