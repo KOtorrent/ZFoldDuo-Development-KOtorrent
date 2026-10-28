@@ -71,6 +71,7 @@ class MainActivity : Activity() {
         pairButton.setOnClickListener { pair() }
 
         scope.launch { AngleRuntime.status.collectLatest(::showStatus) }
+        scope.launch { AngleRuntime.diagnostics.collectLatest { value -> runOnUiThread { detailText.text = value } } }
         scope.launch { AngleRuntime.sample.collectLatest { it?.let(::render) } }
         scope.launch { AngleRuntime.pairEndpoint.collectLatest { runOnUiThread(::renderDiscovery) } }
         scope.launch { AngleRuntime.connectEndpoint.collectLatest { runOnUiThread(::renderDiscovery) } }
@@ -157,11 +158,6 @@ class MainActivity : Activity() {
         previousTimestamp = sample.timestampNanos
         setupPanel.visibility = View.GONE
         angleText.text = String.format(Locale.getDefault(), "%.3f°", sample.angle)
-        detailText.text = String.format(
-            Locale.getDefault(),
-            "PRIVATE 65686   %.3f°",
-            sample.angle,
-        )
         rateText.text = if (updateHz.isFinite()) String.format(Locale.getDefault(), "%.1f Hz", updateHz) else "— Hz"
     }
 
