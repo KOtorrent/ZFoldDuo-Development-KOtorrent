@@ -153,40 +153,10 @@ class EmbeddedAdbAngleClient(
                 "unregisterSensor: mIsSensorRegistered\\[true\\])' " +
                 "'SprWallpaper|FoldInteractive':I '*:S'"
         private const val LIVE_CAPTURE_COMMAND =
-            "APK=${'
-        private val PRIVATE_ANGLE = Regex("mCurrentAngle\\[([-+]?\\d+(?:\\.\\d+)?)\\]")
-
-        private fun safeMessage(error: Throwable): String =
-            error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName
-    }
-}
-}(pm path com.foldduo.hinge | head -n 1 | cut -d: -f2); " +
-                "echo zfold-capture-start; " +
-                "if [ -z \"${'
-        private val PRIVATE_ANGLE = Regex("mCurrentAngle\\[([-+]?\\d+(?:\\.\\d+)?)\\]")
-
-        private fun safeMessage(error: Throwable): String =
-            error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName
-    }
-}
-}APK\" ]; then echo zfold-error-apk-path-empty; exit 1; fi; " +
-                "CLASSPATH=\"${'
-        private val PRIVATE_ANGLE = Regex("mCurrentAngle\\[([-+]?\\d+(?:\\.\\d+)?)\\]")
-
-        private fun safeMessage(error: Throwable): String =
-            error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName
-    }
-}
-}APK\" app_process /system/bin " +
-                "com.foldduo.hinge.capture.LiveCaptureBridge 2>&1; " +
-                "echo zfold-capture-exited-code-${'
-        private val PRIVATE_ANGLE = Regex("mCurrentAngle\\[([-+]?\\d+(?:\\.\\d+)?)\\]")
-
-        private fun safeMessage(error: Throwable): String =
-            error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName
-    }
-}
-}?"
+            "echo zfold-capture-start; " +
+                "CLASSPATH=\$(pm path com.foldduo.hinge | head -n 1 | cut -d: -f2) " +
+                "app_process /system/bin com.foldduo.hinge.capture.LiveCaptureBridge 2>&1; " +
+                "echo zfold-capture-exited-code-\$?"
         private val PRIVATE_ANGLE = Regex("mCurrentAngle\\[([-+]?\\d+(?:\\.\\d+)?)\\]")
 
         private fun safeMessage(error: Throwable): String =
