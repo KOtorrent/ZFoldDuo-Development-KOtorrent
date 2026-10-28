@@ -48,6 +48,8 @@ object AngleRuntime {
 
     private val _diagnostics = MutableStateFlow("Public: waiting | Private: waiting | Active: none")
     val diagnostics = _diagnostics.asStateFlow()
+    private val _sensorInventory = MutableStateFlow("Scanning device sensors")
+    val sensorInventory = _sensorInventory.asStateFlow()
 
     val status = _status.asStateFlow()
     val sample = _sample.asStateFlow()
@@ -90,6 +92,18 @@ object AngleRuntime {
         // Prefer the public hinge-angle sensor if Samsung exposes it on this build.
         // Unlike the private wallpaper/logcat route, this does not need ADB.
         val sensors = app.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val candidates = sensors.getSensorList(Sensor.TYPE_ALL)
+            .filter { sensor ->
+                val description = "${sensor.name} ${sensor.stringType}".lowercase()
+                listOf("hinge", "fold", "angle", "hall", "posture").any(description::contains)
+            }
+        _sensorInventory.value = if (candidates.isEmpty()) {
+            "No named folding/hinge sensors exposed"
+        } else {
+            candidates.joinToString(" | ") {
+                "${it.name} [${it.stringType}, type ${it.type}, minDelay ${it.minDelay}us]"
+            }.take(1100)
+        }
         val hinge = sensors.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE)
         if (hinge != null) {
             val listener = object : SensorEventListener {
