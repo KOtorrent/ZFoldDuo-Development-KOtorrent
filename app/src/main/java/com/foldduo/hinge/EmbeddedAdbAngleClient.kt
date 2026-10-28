@@ -104,12 +104,21 @@ class EmbeddedAdbAngleClient(
     }
 
     private fun readLiveCapture(current: Session) {
+        // Preserve the capture subprocess's final diagnostic lines. Android 17
+        // may reject hidden API calls before "live capture ready" is printed.
+        val recentOutput = ArrayDeque<String>()
         try {
             while (session === current) {
-                current.live.source.readUtf8Line() ?: error("live capture stopped")
+                val line = current.live.source.readUtf8Line()
+                    ?: error("live capture stopped")
+                if (recentOutput.size >= 12) recentOutput.removeFirst()
+                recentOutput.addLast(line.take(300))
             }
         } catch (error: Throwable) {
-            terminate(current, "画面キャプチャ切断: ${safeMessage(error)}")
+            val detail = recentOutput.joinToString(" | ").takeLast(900)
+            val reason = safeMessage(error)
+            terminate(current, "画面キャプチャ切断: $reason" +
+                if (detail.isNotBlank()) " — $detail" else " (no subprocess output)")
         }
     }
 
