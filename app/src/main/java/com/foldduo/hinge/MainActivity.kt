@@ -155,7 +155,6 @@ class MainActivity : Activity() {
             updateHz = if (updateHz.isFinite()) updateHz * 0.85f + instant * 0.15f else instant
         }
         previousTimestamp = sample.timestampNanos
-        statusText.text = "Reading Samsung hinge sensor"
         setupPanel.visibility = View.GONE
         angleText.text = String.format(Locale.getDefault(), "%.3f°", sample.angle)
         detailText.text = String.format(
