@@ -46,6 +46,9 @@ object AngleRuntime {
     private val _pairEndpoint = MutableStateFlow<MdnsEndpoint?>(null)
     private val _connectEndpoint = MutableStateFlow<MdnsEndpoint?>(null)
 
+    private val _diagnostics = MutableStateFlow("Public: waiting | Private: waiting | Active: none")
+    val diagnostics = _diagnostics.asStateFlow()
+
     val status = _status.asStateFlow()
     val sample = _sample.asStateFlow()
     val pairEndpoint = _pairEndpoint.asStateFlow()
@@ -56,6 +59,11 @@ object AngleRuntime {
     @Volatile private var lastPublicAngle = Float.NaN
     @Volatile private var lastPrivateAngle = Float.NaN
     @Volatile private var privateAngleTimeNanos = 0L
+    @Volatile private var activeSource = "none"
+
+    private fun updateDiagnostics() {
+        _diagnostics.value = "Public: ${lastPublicAngle}° | Private: ${lastPrivateAngle}° | Active: $activeSource"
+    }
     private lateinit var mdns: KadbMdnsAndroid
     private var multicastLock: WifiManager.MulticastLock? = null
     private lateinit var client: EmbeddedAdbAngleClient
@@ -94,9 +102,10 @@ object AngleRuntime {
                     val now = SystemClock.elapsedRealtimeNanos()
                     // Prioritize recent private readings if Samsung's public sensor is coarse.
                     if (now - privateAngleTimeNanos > 2_000_000_000L) {
+                        activeSource = "public"
                         _sample.value = AngleSample(angle.coerceIn(0f, 180f), now)
                     }
-                    _status.value = "Public hinge: ${angle}° | private: ${lastPrivateAngle}°"
+                    updateDiagnostics()
                 }
             }
             if (!sensors.registerListener(listener, hinge, SensorManager.SENSOR_DELAY_GAME)) {
@@ -112,8 +121,9 @@ object AngleRuntime {
             onAngle = { angle, timestamp ->
                 lastPrivateAngle = angle
                 privateAngleTimeNanos = timestamp
+                activeSource = "private"
                 _sample.value = AngleSample(angle, timestamp)
-                _status.value = "Private hinge: ${angle}° | public: ${lastPublicAngle}°"
+                updateDiagnostics()
             },
         )
         mdns = KadbMdnsAndroid(
