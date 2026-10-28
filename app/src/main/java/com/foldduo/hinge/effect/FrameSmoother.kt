@@ -49,6 +49,6 @@ class FrameSmoother(private val onFrame: (Float) -> Unit) : Choreographer.FrameC
     }
 
     companion object {
-        const val DEFAULT_TAU_S = 0.045f
+        const val DEFAULT_TAU_S = 0.14f
     }
 }
