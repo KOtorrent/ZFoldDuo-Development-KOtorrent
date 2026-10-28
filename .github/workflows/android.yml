@@ -47,7 +47,8 @@ jobs:
             echo "ZFOLD_KEY_ALIAS=$ZFOLD_KEY_ALIAS" >> "$GITHUB_ENV"
             echo "ZFOLD_KEY_PASSWORD=$ZFOLD_KEY_PASSWORD" >> "$GITHUB_ENV"
           else
-            echo "::warning::Stable signing secrets not configured; APK will use ephemeral debug signing and may not update an existing installation."
+            echo "::error::Permanent signing secrets missing. Refusing to publish an APK signed with an ephemeral key."
+            exit 1
           fi
 
       - name: Test and build debug APK
