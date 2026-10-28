@@ -120,6 +120,18 @@
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary" />
 
+        <EditText
+            android:id="@+id/manualEndpoint"
+            android:layout_width="260dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center"
+            android:singleLine="true"
+            android:hint="Pairing IP:port (optional)"
+            android:inputType="textUri"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary" />
+
         <Button
             android:id="@+id/pairButton"
             android:layout_width="180dp"
