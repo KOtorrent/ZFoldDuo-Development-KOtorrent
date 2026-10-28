@@ -98,7 +98,7 @@ object AngleRuntime {
         KadbCert.configure(OkioFilePrivateKeyStore(app.filesDir.resolve("adb_private_key.pem").path.toPath()))
         client = EmbeddedAdbAngleClient(
             onStatus = {
-                _status.value = it
+                if (!localHingeSensorActive) _status.value = it
                 if (!localHingeSensorActive && (it.contains("disconnected", ignoreCase = true) || it.contains("stopped", ignoreCase = true))) _sample.value = null
             },
             onAngle = { angle, timestamp ->
