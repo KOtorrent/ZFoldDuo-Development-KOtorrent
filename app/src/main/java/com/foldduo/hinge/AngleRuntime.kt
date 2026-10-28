@@ -1,6 +1,7 @@
 package com.foldduo.hinge
 
 import android.content.Context
+import android.net.wifi.WifiManager
 import com.flyfishxu.kadb.Kadb
 import com.flyfishxu.kadb.cert.KadbCert
 import com.flyfishxu.kadb.cert.OkioFilePrivateKeyStore
@@ -45,6 +46,7 @@ object AngleRuntime {
 
     private var initialized = false
     private lateinit var mdns: KadbMdnsAndroid
+    private var multicastLock: WifiManager.MulticastLock? = null
     private lateinit var client: EmbeddedAdbAngleClient
 
     @Synchronized
@@ -52,6 +54,16 @@ object AngleRuntime {
         if (initialized) return
         initialized = true
         val app = context.applicationContext
+        // Some Wi-Fi implementations filter mDNS multicast packets without a lock.
+        runCatching {
+            val wifi = app.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            multicastLock = wifi.createMulticastLock("ZFoldDuo-mDNS").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        }.onFailure {
+            _status.value = "mDNS multicast lock unavailable: ${it.message}"
+        }
         KadbCert.configure(OkioFilePrivateKeyStore(app.filesDir.resolve("adb_private_key.pem").path.toPath()))
         client = EmbeddedAdbAngleClient(
             onStatus = {
