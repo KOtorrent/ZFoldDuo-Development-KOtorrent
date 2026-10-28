@@ -154,7 +154,7 @@ class EmbeddedAdbAngleClient(
                 "'SprWallpaper|FoldInteractive':I '*:S'"
         private const val LIVE_CAPTURE_COMMAND =
             "CLASSPATH=${'$'}(pm path com.foldduo.hinge | head -n 1 | cut -d: -f2) " +
-                "exec app_process /system/bin com.foldduo.hinge.capture.LiveCaptureBridge"
+                "exec app_process /system/bin com.foldduo.hinge.capture.LiveCaptureBridge 2>&1"
         private val PRIVATE_ANGLE = Regex("mCurrentAngle\\[([-+]?\\d+(?:\\.\\d+)?)\\]")
 
         private fun safeMessage(error: Throwable): String =
