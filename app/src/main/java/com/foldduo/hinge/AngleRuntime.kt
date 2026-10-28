@@ -52,7 +52,10 @@ object AngleRuntime {
     val connectEndpoint = _connectEndpoint.asStateFlow()
 
     private var initialized = false
-    private var localHingeSensorActive = false
+    @Volatile private var localHingeSensorActive = false
+    @Volatile private var lastPublicAngle = Float.NaN
+    @Volatile private var lastPrivateAngle = Float.NaN
+    @Volatile private var privateAngleTimeNanos = 0L
     private lateinit var mdns: KadbMdnsAndroid
     private var multicastLock: WifiManager.MulticastLock? = null
     private lateinit var client: EmbeddedAdbAngleClient
@@ -87,8 +90,13 @@ object AngleRuntime {
                     val angle = event.values.firstOrNull() ?: return
                     if (!angle.isFinite() || angle !in 0f..360f) return
                     localHingeSensorActive = true
-                    _sample.value = AngleSample(angle.coerceIn(0f, 180f), SystemClock.elapsedRealtimeNanos())
-                    _status.value = "Reading public hinge sensor: ${event.sensor.name}"
+                    lastPublicAngle = angle
+                    val now = SystemClock.elapsedRealtimeNanos()
+                    // Prioritize recent private readings if Samsung's public sensor is coarse.
+                    if (now - privateAngleTimeNanos > 2_000_000_000L) {
+                        _sample.value = AngleSample(angle.coerceIn(0f, 180f), now)
+                    }
+                    _status.value = "Public hinge: ${angle}° | private: ${lastPrivateAngle}°"
                 }
             }
             if (!sensors.registerListener(listener, hinge, SensorManager.SENSOR_DELAY_GAME)) {
@@ -102,7 +110,10 @@ object AngleRuntime {
                 if (!localHingeSensorActive && (it.contains("disconnected", ignoreCase = true) || it.contains("stopped", ignoreCase = true))) _sample.value = null
             },
             onAngle = { angle, timestamp ->
-                if (!localHingeSensorActive) _sample.value = AngleSample(angle, timestamp)
+                lastPrivateAngle = angle
+                privateAngleTimeNanos = timestamp
+                _sample.value = AngleSample(angle, timestamp)
+                _status.value = "Private hinge: ${angle}° | public: ${lastPublicAngle}°"
             },
         )
         mdns = KadbMdnsAndroid(
