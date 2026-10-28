@@ -14,6 +14,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import com.foldduo.hinge.overlay.HingeOverlayService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -88,15 +89,27 @@ class MainActivity : Activity() {
 
     private fun pair() {
         val code = codeInput.text.toString().filter(Char::isDigit)
+        if (code.length != 6) {
+            statusText.text = "Enter the six-digit pairing code"
+            Toast.makeText(this, "Enter the six-digit pairing code", Toast.LENGTH_LONG).show()
+            return
+        }
         pairButton.isEnabled = false
+        statusText.text = "Pairing requested..."
         scope.launch {
-            val result = AngleRuntime.pair(code)
+            val result = runCatching { AngleRuntime.pair(code).getOrThrow() }
             runOnUiThread {
                 pairButton.isEnabled = true
                 if (result.isSuccess) {
+                    statusText.text = "Pairing succeeded. Connecting..."
+                    Toast.makeText(this@MainActivity, "Pairing succeeded", Toast.LENGTH_LONG).show()
                     codeInput.text.clear()
                     (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
                         .hideSoftInputFromWindow(codeInput.windowToken, 0)
+                } else {
+                    val error = result.exceptionOrNull()?.message ?: "Unknown pairing error"
+                    statusText.text = "Pairing failed: $error"
+                    Toast.makeText(this@MainActivity, "Pairing failed: $error", Toast.LENGTH_LONG).show()
                 }
             }
         }
