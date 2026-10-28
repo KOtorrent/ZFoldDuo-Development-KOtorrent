@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace 'com.foldduo.hinge'
-    compileSdk 37
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.foldduo.hinge'
         minSdk 33
-        targetSdk 37
+        targetSdk 36
         versionCode 62
         versionName '0.0.1'
     }
