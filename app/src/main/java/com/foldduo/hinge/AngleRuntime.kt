@@ -33,7 +33,7 @@ object AngleRuntime {
     private val connecting = AtomicBoolean(false)
     private val pairing = AtomicBoolean(false)
     private val displayCommand = Mutex()
-    private val _status = MutableStateFlow("ワイヤレスデバッグを待っています")
+    private val _status = MutableStateFlow("Waiting for wireless debugging")
     private val _sample = MutableStateFlow<AngleSample?>(null)
     private val _pairEndpoint = MutableStateFlow<MdnsEndpoint?>(null)
     private val _connectEndpoint = MutableStateFlow<MdnsEndpoint?>(null)
@@ -56,7 +56,7 @@ object AngleRuntime {
         client = EmbeddedAdbAngleClient(
             onStatus = {
                 _status.value = it
-                if (it.contains("切断") || it.contains("停止")) _sample.value = null
+                if (it.contains("disconnected", ignoreCase = true) || it.contains("stopped", ignoreCase = true)) _sample.value = null
             },
             onAngle = { angle, timestamp ->
                 _sample.value = AngleSample(angle, timestamp)
@@ -81,7 +81,7 @@ object AngleRuntime {
                         _sample.value = null
                         client.connect(endpoint.host, endpoint.port)
                     } catch (_: Throwable) {
-                        _status.value = "ADBペアリングが必要です"
+                        _status.value = "ADB pairing required"
                     } finally {
                         connecting.set(false)
                     }
@@ -93,25 +93,25 @@ object AngleRuntime {
 
     suspend fun pair(code: String): Result<Unit> {
         val endpoint = _pairEndpoint.value ?: run {
-            val error = IllegalStateException("ペア設定コード画面を開いたままにしてください")
+            val error = IllegalStateException("Keep the Android pairing-code screen open")
             _status.value = error.message.orEmpty()
             return Result.failure(error)
         }
         if (code.length != 6 || !code.all(Char::isDigit)) {
-            val error = IllegalArgumentException("6桁のコードを入力してください")
+            val error = IllegalArgumentException("Enter the six-digit pairing code")
             _status.value = error.message.orEmpty()
             return Result.failure(error)
         }
         if (!pairing.compareAndSet(false, true)) {
-            return Result.failure(IllegalStateException("ペアリング中です"))
+            return Result.failure(IllegalStateException("Pairing already in progress"))
         }
         return try {
-            _status.value = "ペアリング中"
+            _status.value = "Pairing"
             Kadb.pair(endpoint.host, endpoint.port, code, "ZFoldDuo")
-            _status.value = "ペアリング完了・接続中"
+            _status.value = "Paired; connecting"
             Result.success(Unit)
         } catch (error: Throwable) {
-            _status.value = "ペアリング失敗: ${safeMessage(error)}"
+            _status.value = "Pairing failed: ${safeMessage(error)}"
             Result.failure(error)
         } finally {
             pairing.set(false)
