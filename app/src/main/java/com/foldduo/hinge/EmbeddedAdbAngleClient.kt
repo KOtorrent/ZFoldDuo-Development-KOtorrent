@@ -28,7 +28,7 @@ class EmbeddedAdbAngleClient(
 
     fun connect(host: String, port: Int) {
         close()
-        onStatus("内蔵ADB接続中")
+        onStatus("Connecting to embedded ADB")
 
         val adb = Kadb.create(host, port, connectTimeout = 5_000)
         var control: Kadb? = null
@@ -54,7 +54,7 @@ class EmbeddedAdbAngleClient(
             Thread({ watchProbe(started) }, "ZFoldDuo-private-probe").start()
             Thread({ readPrivateAngle(started) }, "ZFoldDuo-private-angle").start()
             Thread({ readLiveCapture(started) }, "ZFoldDuo-live-capture").start()
-            onStatus("Samsung内部ヒンジ計測中")
+            onStatus("Reading Samsung hinge sensor")
         } catch (error: Throwable) {
             runCatching { probe?.close() }
             runCatching { angle?.close() }
@@ -81,7 +81,7 @@ class EmbeddedAdbAngleClient(
                 current.probe.source.readUtf8Line() ?: error("private sensor probe stopped")
             }
         } catch (error: Throwable) {
-            terminate(current, "内部ヒンジprobe切断: ${safeMessage(error)}")
+            terminate(current, "Hinge sensor probe disconnected: ${safeMessage(error)}")
         }
     }
 
@@ -96,10 +96,10 @@ class EmbeddedAdbAngleClient(
                 val value = PRIVATE_ANGLE.find(line)?.groupValues?.get(1)?.toFloatOrNull() ?: continue
                 val hinge = value.coerceIn(0f, 180f)
                 onAngle(hinge, SystemClock.elapsedRealtimeNanos())
-                onStatus("Samsung内部ヒンジ計測中")
+                onStatus("Reading Samsung hinge sensor")
             }
         } catch (error: Throwable) {
-            terminate(current, "内部ヒンジ切断: ${safeMessage(error)}")
+            terminate(current, "Hinge angle stream disconnected: ${safeMessage(error)}")
         }
     }
 
@@ -117,7 +117,7 @@ class EmbeddedAdbAngleClient(
         } catch (error: Throwable) {
             val detail = recentOutput.joinToString(" | ").takeLast(900)
             val reason = safeMessage(error)
-            terminate(current, "画面キャプチャ切断: $reason" +
+            terminate(current, "Screen capture disconnected: $reason" +
                 if (detail.isNotBlank()) " — $detail" else " (no subprocess output)")
         }
     }
