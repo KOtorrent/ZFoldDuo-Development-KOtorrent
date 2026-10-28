@@ -2,6 +2,8 @@ package com.foldduo.hinge
 
 import android.content.Context
 import android.net.wifi.WifiManager
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import com.flyfishxu.kadb.Kadb
 import com.flyfishxu.kadb.cert.KadbCert
 import com.flyfishxu.kadb.cert.OkioFilePrivateKeyStore
@@ -48,6 +50,10 @@ object AngleRuntime {
     private lateinit var mdns: KadbMdnsAndroid
     private var multicastLock: WifiManager.MulticastLock? = null
     private lateinit var client: EmbeddedAdbAngleClient
+    private var fallbackPairHost: String? = null
+    private var fallbackPairPort: Int? = null
+    private var fallbackConnectHost: String? = null
+    private var fallbackConnectPort: Int? = null
 
     @Synchronized
     fun init(context: Context) {
@@ -85,28 +91,64 @@ object AngleRuntime {
             }
         }
         mdns.start()
+        // Platform NSD fallback: Android 17 may not return pairing endpoints
+        // through Kadb's multicast discovery even when Wireless debugging is on.
+        val nsd = app.getSystemService(Context.NSD_SERVICE) as NsdManager
+        fun discover(serviceType: String, onResolved: (String, Int) -> Unit) {
+            val listener = object : NsdManager.DiscoveryListener {
+                override fun onDiscoveryStarted(type: String) = Unit
+                override fun onDiscoveryStopped(type: String) = Unit
+                override fun onStartDiscoveryFailed(type: String, code: Int) {
+                    _status.value = "NSD discovery failed ($type): $code"
+                }
+                override fun onStopDiscoveryFailed(type: String, code: Int) = Unit
+                override fun onServiceLost(service: NsdServiceInfo) = Unit
+                override fun onServiceFound(service: NsdServiceInfo) {
+                    @Suppress("DEPRECATION")
+                    nsd.resolveService(service, object : NsdManager.ResolveListener {
+                        override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) = Unit
+                        override fun onServiceResolved(info: NsdServiceInfo) {
+                            val host = info.host?.hostAddress ?: return
+                            if (info.port in 1..65535) onResolved(host, info.port)
+                        }
+                    })
+                }
+            }
+            runCatching { nsd.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, listener) }
+        }
+        discover("_adb-tls-pairing._tcp.") { host, port ->
+            fallbackPairHost = host
+            fallbackPairPort = port
+            if (_pairEndpoint.value == null) _status.value = "Pairing service discovered via Android NSD"
+        }
+        discover("_adb-tls-connect._tcp.") { host, port ->
+            fallbackConnectHost = host
+            fallbackConnectPort = port
+        }
         scope.launch {
             while (isActive) {
                 val endpoint = _connectEndpoint.value
-                if (endpoint != null && !client.isConnected && connecting.compareAndSet(false, true)) {
+                val host = endpoint?.host ?: fallbackConnectHost
+                val port = endpoint?.port ?: fallbackConnectPort
+                if (host != null && port != null && !client.isConnected && connecting.compareAndSet(false, true)) {
                     try {
                         _sample.value = null
-                        client.connect(endpoint.host, endpoint.port)
+                        client.connect(host, port)
                     } catch (_: Throwable) {
                         _status.value = "ADB pairing required"
                     } finally {
                         connecting.set(false)
                     }
                 }
-                delay(if (endpoint == null) 500L else 2_500L)
+                delay(if (host == null) 500L else 2_500L)
             }
         }
     }
 
     suspend fun pair(code: String, manualHost: String? = null, manualPort: Int? = null): Result<Unit> {
         val discovered = _pairEndpoint.value
-        val host = manualHost?.trim()?.takeIf { it.isNotEmpty() } ?: discovered?.host
-        val port = manualPort ?: discovered?.port
+        val host = manualHost?.trim()?.takeIf { it.isNotEmpty() } ?: discovered?.host ?: fallbackPairHost
+        val port = manualPort ?: discovered?.port ?: fallbackPairPort
         if (host == null || port == null || port !in 1..65535) {
             val error = IllegalStateException("Pairing service not discovered. Enter the IP and pairing port from Android's pairing popup.")
             _status.value = error.message.orEmpty()
