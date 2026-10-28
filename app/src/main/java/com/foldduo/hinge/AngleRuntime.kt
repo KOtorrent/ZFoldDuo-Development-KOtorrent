@@ -1,6 +1,11 @@
 package com.foldduo.hinge
 
 import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.os.SystemClock
 import android.net.wifi.WifiManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
@@ -47,6 +52,7 @@ object AngleRuntime {
     val connectEndpoint = _connectEndpoint.asStateFlow()
 
     private var initialized = false
+    private var localHingeSensorActive = false
     private lateinit var mdns: KadbMdnsAndroid
     private var multicastLock: WifiManager.MulticastLock? = null
     private lateinit var client: EmbeddedAdbAngleClient
@@ -70,14 +76,33 @@ object AngleRuntime {
         }.onFailure {
             _status.value = "mDNS multicast lock unavailable: ${it.message}"
         }
+        // Prefer the public hinge-angle sensor if Samsung exposes it on this build.
+        // Unlike the private wallpaper/logcat route, this does not need ADB.
+        val sensors = app.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val hinge = sensors.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE)
+        if (hinge != null) {
+            val listener = object : SensorEventListener {
+                override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) = Unit
+                override fun onSensorChanged(event: SensorEvent) {
+                    val angle = event.values.firstOrNull() ?: return
+                    if (!angle.isFinite() || angle !in 0f..360f) return
+                    localHingeSensorActive = true
+                    _sample.value = AngleSample(angle.coerceIn(0f, 180f), SystemClock.elapsedRealtimeNanos())
+                    _status.value = "Reading public hinge sensor: ${event.sensor.name}"
+                }
+            }
+            if (!sensors.registerListener(listener, hinge, SensorManager.SENSOR_DELAY_GAME)) {
+                _status.value = "Public hinge sensor registration failed; trying Samsung private sensor"
+            }
+        }
         KadbCert.configure(OkioFilePrivateKeyStore(app.filesDir.resolve("adb_private_key.pem").path.toPath()))
         client = EmbeddedAdbAngleClient(
             onStatus = {
                 _status.value = it
-                if (it.contains("disconnected", ignoreCase = true) || it.contains("stopped", ignoreCase = true)) _sample.value = null
+                if (!localHingeSensorActive && (it.contains("disconnected", ignoreCase = true) || it.contains("stopped", ignoreCase = true))) _sample.value = null
             },
             onAngle = { angle, timestamp ->
-                _sample.value = AngleSample(angle, timestamp)
+                if (!localHingeSensorActive) _sample.value = AngleSample(angle, timestamp)
             },
         )
         mdns = KadbMdnsAndroid(
@@ -132,7 +157,7 @@ object AngleRuntime {
                 val port = endpoint?.port ?: fallbackConnectPort
                 if (host != null && port != null && !client.isConnected && connecting.compareAndSet(false, true)) {
                     try {
-                        _sample.value = null
+                        if (!localHingeSensorActive) _sample.value = null
                         client.connect(host, port)
                     } catch (_: Throwable) {
                         _status.value = "ADB pairing required"
