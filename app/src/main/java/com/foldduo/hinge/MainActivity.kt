@@ -77,7 +77,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         val enabled = HingeOverlayService.isEnabled(this)
-        overlayStatus.text = if (enabled) "画面オーバーレイ ON" else "画面オーバーレイ OFF"
+        overlayStatus.text = if (enabled) "Screen overlay ON" else "Screen overlay OFF"
         demoButton.isEnabled = enabled && HingeOverlayService.instance != null
     }
 
@@ -106,9 +106,9 @@ class MainActivity : Activity() {
         val pair = AngleRuntime.pairEndpoint.value
         val connect = AngleRuntime.connectEndpoint.value
         endpointText.text = when {
-            pair != null -> "ペアリング先を検出  port ${pair.port}"
-            connect != null -> "ワイヤレスデバッグ検出済み"
-            else -> "ワイヤレスデバッグを待っています"
+            pair != null -> "Pairing service discovered on port ${pair.port}"
+            connect != null -> "Wireless debugging detected"
+            else -> "Waiting for wireless debugging"
         }
     }
 
@@ -123,7 +123,7 @@ class MainActivity : Activity() {
             updateHz = if (updateHz.isFinite()) updateHz * 0.85f + instant * 0.15f else instant
         }
         previousTimestamp = sample.timestampNanos
-        statusText.text = "Samsung内部ヒンジ計測中"
+        statusText.text = "Reading Samsung hinge sensor"
         setupPanel.visibility = View.GONE
         angleText.text = String.format(Locale.getDefault(), "%.3f°", sample.angle)
         detailText.text = String.format(
