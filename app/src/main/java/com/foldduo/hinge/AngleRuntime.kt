@@ -91,9 +91,12 @@ object AngleRuntime {
         }
     }
 
-    suspend fun pair(code: String): Result<Unit> {
-        val endpoint = _pairEndpoint.value ?: run {
-            val error = IllegalStateException("Keep the Android pairing-code screen open")
+    suspend fun pair(code: String, manualHost: String? = null, manualPort: Int? = null): Result<Unit> {
+        val discovered = _pairEndpoint.value
+        val host = manualHost?.trim()?.takeIf { it.isNotEmpty() } ?: discovered?.host
+        val port = manualPort ?: discovered?.port
+        if (host == null || port == null || port !in 1..65535) {
+            val error = IllegalStateException("Pairing service not discovered. Enter the IP and pairing port from Android's pairing popup.")
             _status.value = error.message.orEmpty()
             return Result.failure(error)
         }
@@ -107,7 +110,7 @@ object AngleRuntime {
         }
         return try {
             _status.value = "Pairing"
-            Kadb.pair(endpoint.host, endpoint.port, code, "ZFoldDuo")
+            Kadb.pair(host, port, code, "ZFoldDuo")
             _status.value = "Paired; connecting"
             Result.success(Unit)
         } catch (error: Throwable) {
