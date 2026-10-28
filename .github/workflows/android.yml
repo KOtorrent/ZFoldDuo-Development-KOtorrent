@@ -31,6 +31,25 @@ jobs:
       - name: Install Android SDK platform
         run: sdkmanager "platforms;android-37.0"
 
+      - name: Restore stable signing key
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          ZFOLD_KEYSTORE_BASE64: ${{ secrets.ZFOLD_KEYSTORE_BASE64 }}
+          ZFOLD_KEYSTORE_PASSWORD: ${{ secrets.ZFOLD_KEYSTORE_PASSWORD }}
+          ZFOLD_KEY_ALIAS: ${{ secrets.ZFOLD_KEY_ALIAS }}
+          ZFOLD_KEY_PASSWORD: ${{ secrets.ZFOLD_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          if [[ -n "$ZFOLD_KEYSTORE_BASE64" && -n "$ZFOLD_KEYSTORE_PASSWORD" && -n "$ZFOLD_KEY_ALIAS" && -n "$ZFOLD_KEY_PASSWORD" ]]; then
+            echo "$ZFOLD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/zfold-signing.jks"
+            echo "ZFOLD_KEYSTORE_PATH=$RUNNER_TEMP/zfold-signing.jks" >> "$GITHUB_ENV"
+            echo "ZFOLD_KEYSTORE_PASSWORD=$ZFOLD_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ZFOLD_KEY_ALIAS=$ZFOLD_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "ZFOLD_KEY_PASSWORD=$ZFOLD_KEY_PASSWORD" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Stable signing secrets not configured; APK will use ephemeral debug signing and may not update an existing installation."
+          fi
+
       - name: Test and build debug APK
         run: ./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
 
@@ -41,3 +60,7 @@ jobs:
           name: ZFoldDuo-Android17-Diagnostics
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
+
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/zfold-signing.jks"
