@@ -33,6 +33,7 @@ class MainActivity : Activity() {
     private lateinit var setupPanel: View
     private lateinit var endpointText: TextView
     private lateinit var codeInput: EditText
+    private lateinit var manualEndpoint: EditText
     private lateinit var pairButton: Button
     private lateinit var overlayStatus: TextView
     private lateinit var demoButton: Button
@@ -55,6 +56,7 @@ class MainActivity : Activity() {
         setupPanel = findViewById(R.id.setupPanel)
         endpointText = findViewById(R.id.endpointText)
         codeInput = findViewById(R.id.codeInput)
+        manualEndpoint = findViewById(R.id.manualEndpoint)
         pairButton = findViewById(R.id.pairButton)
         overlayStatus = findViewById(R.id.overlayStatus)
         demoButton = findViewById(R.id.demoButton)
@@ -94,10 +96,27 @@ class MainActivity : Activity() {
             Toast.makeText(this, "Enter the six-digit pairing code", Toast.LENGTH_LONG).show()
             return
         }
+        val endpointInput = manualEndpoint.text.toString().trim()
+        val manualHost: String?
+        val manualPort: Int?
+        if (endpointInput.isNotEmpty()) {
+            val parts = endpointInput.split(":")
+            val port = parts.getOrNull(1)?.toIntOrNull()
+            if (parts.size != 2 || parts[0].isBlank() || port == null || port !in 1..65535) {
+                statusText.text = "Enter the pairing address as IP:port"
+                Toast.makeText(this, "Enter the pairing address as IP:port", Toast.LENGTH_LONG).show()
+                return
+            }
+            manualHost = parts[0]
+            manualPort = port
+        } else {
+            manualHost = null
+            manualPort = null
+        }
         pairButton.isEnabled = false
         statusText.text = "Pairing requested..."
         scope.launch {
-            val result = runCatching { AngleRuntime.pair(code).getOrThrow() }
+            val result = runCatching { AngleRuntime.pair(code, manualHost, manualPort).getOrThrow() }
             runOnUiThread {
                 pairButton.isEnabled = true
                 if (result.isSuccess) {
