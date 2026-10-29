@@ -1,6 +1,8 @@
 package com.foldduo.hinge
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class HingeSensorQualityTest {
@@ -20,5 +22,19 @@ class HingeSensorQualityTest {
         val quality = HingeSensorQuality()
         listOf(Float.NaN, -1f, 200f).forEach(quality::observe)
         assertEquals("sampling", quality.label)
+    }
+
+    @Test fun coarseSourceRecognizedBeforeThirdPostureState() {
+        val quality = HingeSensorQuality()
+        quality.observe(180f)
+        assertFalse(quality.isCoarse)
+        quality.observe(90f)
+        assertTrue(quality.isCoarse)
+    }
+
+    @Test fun genuineIntermediateAnglesKeepContinuousSourceEnabled() {
+        val quality = HingeSensorQuality()
+        listOf(180f, 176f, 170f, 160f).forEach(quality::observe)
+        assertFalse(quality.isCoarse)
     }
 }
