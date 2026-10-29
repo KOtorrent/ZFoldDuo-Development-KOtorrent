@@ -118,7 +118,9 @@ object AngleRuntime {
                     publicQuality.observe(angle)
                     val now = SystemClock.elapsedRealtimeNanos()
                     // Prioritize recent private readings if Samsung's public sensor is coarse.
-                    angleSelector.onPublic(angle, now)?.let { accepted ->
+                    // Coarse posture states are not continuous angles; never feed them
+                    // into the animated projection once identified.
+                    if (!publicQuality.isCoarse) angleSelector.onPublic(angle, now)?.let { accepted ->
                         activeSource = "public"
                         _sample.value = AngleSample(accepted, now)
                     }
