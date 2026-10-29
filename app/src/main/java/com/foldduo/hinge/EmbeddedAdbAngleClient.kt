@@ -154,12 +154,28 @@ class EmbeddedAdbAngleClient(
                 "'SprWallpaper|FoldInteractive':I '*:S'"
         private const val LIVE_CAPTURE_COMMAND =
             "echo zfold-capture-shell-start; " +
-                "APK=$(pm path com.foldduo.hinge | head -n 1 | cut -d: -f2); " +
+                "APK=${'(pm path com.foldduo.hinge | head -n 1 | cut -d: -f2); " +
                 "if [ -z \"$APK\" ]; then echo zfold-capture-no-apk; exit 10; fi; " +
                 "echo zfold-capture-apk-found; " +
                 "CLASSPATH=\"$APK\" app_process /system/bin " +
                 "com.foldduo.hinge.capture.LiveCaptureBridge 2>&1; " +
                 "RESULT=$?; echo zfold-capture-exit-$RESULT"
+}(pm path com.foldduo.hinge | head -n 1 | cut -d: -f2); " +
+                "if [ -z \"${'APK\" ]; then echo zfold-capture-no-apk; exit 10; fi; " +
+                "echo zfold-capture-apk-found; " +
+                "CLASSPATH=\"$APK\" app_process /system/bin " +
+                "com.foldduo.hinge.capture.LiveCaptureBridge 2>&1; " +
+                "RESULT=$?; echo zfold-capture-exit-$RESULT"
+}APK\" ]; then echo zfold-capture-no-apk; exit 10; fi; " +
+                "echo zfold-capture-apk-found; " +
+                "CLASSPATH=\"${'APK\" app_process /system/bin " +
+                "com.foldduo.hinge.capture.LiveCaptureBridge 2>&1; " +
+                "RESULT=$?; echo zfold-capture-exit-$RESULT"
+}APK\" app_process /system/bin " +
+                "com.foldduo.hinge.capture.LiveCaptureBridge 2>&1; " +
+                "RESULT=${'?; echo zfold-capture-exit-$RESULT"
+}?; echo zfold-capture-exit-${'RESULT"
+}RESULT"
         private val PRIVATE_ANGLE = Regex("mCurrentAngle\\[([-+]?\\d+(?:\\.\\d+)?)\\]")
 
         private fun safeMessage(error: Throwable): String =
