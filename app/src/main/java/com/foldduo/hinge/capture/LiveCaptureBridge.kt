@@ -18,8 +18,21 @@ import java.util.function.ObjIntConsumer
 object LiveCaptureBridge {
     @JvmStatic
     fun main(args: Array<String>) {
-        val sink = connectSink()
-        val capture = DisplayCapture()
+        System.out.println("ZFoldDuo capture boot: sdk=" + Build.VERSION.SDK_INT)
+        val sink = try {
+            connectSink()
+        } catch (error: Throwable) {
+            System.err.println("ZFoldDuo capture sink startup failed: " + error.javaClass.name + ": " + error.message)
+            error.printStackTrace(System.err)
+            return
+        }
+        val capture = try {
+            DisplayCapture()
+        } catch (error: Throwable) {
+            System.err.println("ZFoldDuo display capture API startup failed: " + error.javaClass.name + ": " + error.message)
+            error.printStackTrace(System.err)
+            return
+        }
         System.out.println("ZFoldDuo live capture ready")
 
         try {
@@ -43,6 +56,10 @@ object LiveCaptureBridge {
                 if (wait > 0) Thread.sleep(wait)
             }
         } catch (_: DeadObjectException) { /* APK process was replaced or stopped. */ }
+        catch (error: Throwable) {
+            System.err.println("ZFoldDuo capture loop failed: " + error.javaClass.name + ": " + error.message)
+            error.printStackTrace(System.err)
+        }
     }
 
     private fun connectSink(): ILiveFrameSink {
