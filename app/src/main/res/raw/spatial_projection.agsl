@@ -55,7 +55,7 @@ half4 main(float2 fragCoord) {
         float w = 1.0 - step(tapsF, fi);
         float r = radius * sqrt((fi + 0.5) / tapsF);
         float a = fi * GOLDEN_ANGLE + rotation;
-        sum += content.eval(hit + r * float2(cos(a), sin(a))).rgb * half(w);
+        float2 samplePos = clamp(hit + r * float2(cos(a), sin(a)),\n            float2(0.5, 0.5), resolution - float2(0.5, 0.5));\n        sum += content.eval(samplePos).rgb * half(w);
         wsum += w;
     }
     half3 avg = sum / half(max(wsum, 1.0));
