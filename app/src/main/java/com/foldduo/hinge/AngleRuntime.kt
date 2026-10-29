@@ -63,9 +63,10 @@ object AngleRuntime {
     @Volatile private var lastPrivateAngle = Float.NaN
     @Volatile private var privateAngleTimeNanos = 0L
     @Volatile private var activeSource = "none"
+    private val publicQuality = HingeSensorQuality()
 
     private fun updateDiagnostics() {
-        _diagnostics.value = "Public: ${lastPublicAngle}° | Private: ${lastPrivateAngle}° | Active: $activeSource"
+        _diagnostics.value = "Public: ${lastPublicAngle}° (${publicQuality.label}) | Private: ${lastPrivateAngle}° | Active: $activeSource"
     }
     private lateinit var mdns: KadbMdnsAndroid
     private var multicastLock: WifiManager.MulticastLock? = null
@@ -114,6 +115,7 @@ object AngleRuntime {
                     if (!angle.isFinite() || angle !in 0f..360f) return
                     localHingeSensorActive = true
                     lastPublicAngle = angle
+                    publicQuality.observe(angle)
                     val now = SystemClock.elapsedRealtimeNanos()
                     // Prioritize recent private readings if Samsung's public sensor is coarse.
                     angleSelector.onPublic(angle, now)?.let { accepted ->
