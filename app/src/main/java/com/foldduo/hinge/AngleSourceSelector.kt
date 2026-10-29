@@ -12,6 +12,7 @@ class AngleSourceSelector(
 
     fun onPrivate(angle: Float, timestampNanos: Long): Float? {
         if (!angle.isFinite() || angle !in 0f..180f) return null
+        if (lastPrivateTimeNanos?.let { timestampNanos <= it } == true) return null
         lastPrivateTimeNanos = timestampNanos
         return angle
     }
