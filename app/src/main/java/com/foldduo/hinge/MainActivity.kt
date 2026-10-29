@@ -71,7 +71,8 @@ class MainActivity : Activity() {
         pairButton.setOnClickListener { pair() }
 
         scope.launch { AngleRuntime.status.collectLatest(::showStatus) }
-        scope.launch { AngleRuntime.diagnostics.collectLatest { value -> runOnUiThread { detailText.text = value } } }
+        scope.launch { AngleRuntime.diagnostics.collectLatest { runOnUiThread(::renderTechnicalDiagnostics) } }
+        scope.launch { AngleRuntime.adbDiagnostics.collectLatest { runOnUiThread(::renderTechnicalDiagnostics) } }
         scope.launch { AngleRuntime.sensorInventory.collectLatest { value -> runOnUiThread { endpointText.text = value } } }
         scope.launch { AngleRuntime.sample.collectLatest { it?.let(::render) } }
         scope.launch { AngleRuntime.pairEndpoint.collectLatest { runOnUiThread(::renderDiscovery) } }
@@ -134,6 +135,10 @@ class MainActivity : Activity() {
                 }
             }
         }
+    }
+
+    private fun renderTechnicalDiagnostics() {
+        detailText.text = "${AngleRuntime.diagnostics.value}\nADB: ${AngleRuntime.adbDiagnostics.value}"
     }
 
     private fun renderDiscovery() {
