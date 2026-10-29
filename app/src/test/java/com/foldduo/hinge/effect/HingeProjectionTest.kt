@@ -37,4 +37,14 @@ class HingeProjectionTest {
         assertEquals(0f, HingeProjection.coverTiltForHinge(0f, config), 0.0001f)
         assertEquals(0f, HingeProjection.tiltForHinge(180f, config), 0.0001f)
     }
+
+    @Test
+    fun invalidHingeAnglesNeverGenerateExtremeAnimation() {
+        listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY).forEach { invalid ->
+            assertEquals(0f, HingeProjection.tiltFor(invalid, config, true), 0.0001f)
+            assertEquals(0f, HingeProjection.tiltFor(invalid, config, false), 0.0001f)
+            assertEquals(0f, HingeProjection.tiltForHinge(invalid, config), 0.0001f)
+            assertEquals(0f, HingeProjection.coverTiltForHinge(invalid, config), 0.0001f)
+        }
+    }
 }
