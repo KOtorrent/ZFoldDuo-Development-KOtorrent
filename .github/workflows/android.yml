@@ -63,7 +63,7 @@ jobs:
           test -n "$APKSIGNER"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           test -n "${ZFOLD_KEYSTORE_PATH:-}"
-          APK_SHA=$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
+          APK_SHA=$("$APKSIGNER" verify --print-certs "$APK" | sed -nE 's/^(Signer #1|V[234] Signer): certificate SHA-256 digest: //p' | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
           KEY_SHA=$(keytool -list -v -keystore "$ZFOLD_KEYSTORE_PATH" -storepass "$ZFOLD_KEYSTORE_PASSWORD" -alias "$ZFOLD_KEY_ALIAS" | sed -n 's/^[[:space:]]*SHA256: //p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
           test -n "$APK_SHA" && test "$APK_SHA" = "$KEY_SHA" || {
             echo "::error::APK signer does not match the permanent key"; exit 1;
