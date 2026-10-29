@@ -105,9 +105,21 @@ object LiveCaptureBridge {
     }
 
     private class DisplayCapture {
-        private val family = CaptureApiFamilies.names.firstOrNull { name ->
-            runCatching { Class.forName(name + "\$CaptureArgs") }.isSuccess
-        } ?: error("No supported Android screen capture API found")
+        private val family = CaptureApiFamilies.firstCompatible { name ->
+            runCatching {
+                val args = Class.forName(name + "\$CaptureArgs")
+                val listener = Class.forName(name + "\$ScreenCaptureListener")
+                Class.forName(name + "\$ScreenshotHardwareBuffer").getDeclaredMethod("getHardwareBuffer")
+                val builder = Class.forName(name + "\$CaptureArgs\$Builder")
+                builder.getDeclaredConstructor()
+                builder.getDeclaredMethod("setFrameScale", Float::class.javaPrimitiveType)
+                builder.getDeclaredMethod("build")
+                runCatching { listener.getDeclaredConstructor(ObjIntConsumer::class.java) }
+                    .getOrElse { listener.getDeclaredConstructor(java.util.function.Consumer::class.java) }
+                val window = Class.forName("android.view.IWindowManager")
+                window.getMethod("captureDisplay", Int::class.javaPrimitiveType, args, listener)
+            }.isSuccess
+        } ?: error("No compatible Android screen capture API available")
         private val argsClass = Class.forName(family + "\$CaptureArgs")
         private val listenerClass = Class.forName(family + "\$ScreenCaptureListener")
         private val screenshotClass = Class.forName(family + "\$ScreenshotHardwareBuffer")
