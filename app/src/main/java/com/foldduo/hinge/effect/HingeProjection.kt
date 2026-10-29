@@ -41,16 +41,18 @@ object HingeProjection {
      * the cover display rotates through the full remaining dihedral angle.
      */
     fun tiltForHinge(hingeDegrees: Float, config: EffectProfile): Float =
-        ((PHYSICAL_FLAT_HINGE - hingeDegrees.coerceIn(0f, PHYSICAL_FLAT_HINGE)) *
-            config.intensity).coerceIn(0f, MAX_TILT)
+        (if (!hingeDegrees.isFinite()) 0f else
+            ((PHYSICAL_FLAT_HINGE - hingeDegrees.coerceIn(0f, PHYSICAL_FLAT_HINGE)) *
+                config.intensity).coerceIn(0f, MAX_TILT))
 
     /** The cover is the reverse face of that rotating left leaf. */
     fun coverTiltForHinge(hingeDegrees: Float, config: EffectProfile): Float =
-        (hingeDegrees.coerceIn(0f, PHYSICAL_FLAT_HINGE) * config.intensity)
-            .coerceIn(0f, MAX_TILT)
+        (if (!hingeDegrees.isFinite()) 0f else
+            (hingeDegrees.coerceIn(0f, PHYSICAL_FLAT_HINGE) * config.intensity)
+                .coerceIn(0f, MAX_TILT))
 
     fun tiltFor(hingeDegrees: Float, config: EffectProfile, innerPanel: Boolean): Float =
-        if (hingeDegrees.isNaN()) 0f
+        if (!hingeDegrees.isFinite()) 0f
         else if (innerPanel) tiltForHinge(hingeDegrees, config)
         else coverTiltForHinge(hingeDegrees, config)
 
