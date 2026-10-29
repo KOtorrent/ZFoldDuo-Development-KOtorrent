@@ -105,10 +105,14 @@ object LiveCaptureBridge {
     }
 
     private class DisplayCapture {
-        private val argsClass = Class.forName("android.window.ScreenCaptureInternal\$CaptureArgs")
-        private val listenerClass = Class.forName("android.window.ScreenCaptureInternal\$ScreenCaptureListener")
-        private val screenshotClass = Class.forName("android.window.ScreenCaptureInternal\$ScreenshotHardwareBuffer")
-        private val listenerConstructor = listenerClass.getDeclaredConstructor(ObjIntConsumer::class.java)
+        private val family = CaptureApiFamilies.names.firstOrNull { name ->
+            runCatching { Class.forName(name + "\$CaptureArgs") }.isSuccess
+        } ?: error("No supported Android screen capture API found")
+        private val argsClass = Class.forName(family + "\$CaptureArgs")
+        private val listenerClass = Class.forName(family + "\$ScreenCaptureListener")
+        private val screenshotClass = Class.forName(family + "\$ScreenshotHardwareBuffer")
+        private val modernCallback = runCatching { listenerClass.getDeclaredConstructor(ObjIntConsumer::class.java) }.getOrNull()
+        private val listenerConstructor = modernCallback ?: listenerClass.getDeclaredConstructor(java.util.function.Consumer::class.java)
         private val getHardwareBuffer = screenshotClass.getDeclaredMethod("getHardwareBuffer")
         private val windowManager: Any
         private val captureDisplay: java.lang.reflect.Method
@@ -124,7 +128,7 @@ object LiveCaptureBridge {
                 argsClass,
                 listenerClass,
             )
-            val builderClass = Class.forName("android.window.ScreenCaptureInternal\$CaptureArgs\$Builder")
+            val builderClass = Class.forName(family + "\$CaptureArgs\$Builder")
             val builder = builderClass.getDeclaredConstructor().newInstance()
             builderClass.getDeclaredMethod("setFrameScale", Float::class.javaPrimitiveType)
                 .invoke(builder, FRAME_SCALE)
@@ -136,10 +140,18 @@ object LiveCaptureBridge {
             val latch = CountDownLatch(1)
             var result: Any? = null
             var status = -1
-            val consumer = ObjIntConsumer<Any?> { buffer, code ->
-                result = buffer
-                status = code
-                latch.countDown()
+            val consumer: Any = if (modernCallback != null) {
+                ObjIntConsumer<Any?> { buffer, code ->
+                    result = buffer
+                    status = code
+                    latch.countDown()
+                }
+            } else {
+                java.util.function.Consumer<Any?> { buffer ->
+                    result = buffer
+                    status = 0
+                    latch.countDown()
+                }
             }
             val listener = listenerConstructor.newInstance(consumer)
             captureDisplay.invoke(windowManager, displayId, captureArgs, listener)
