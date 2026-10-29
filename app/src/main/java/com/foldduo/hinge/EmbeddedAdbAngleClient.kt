@@ -35,6 +35,7 @@ class EmbeddedAdbAngleClient(
         var probe: AdbStream? = null
         var angle: AdbStream? = null
         var live: AdbStream? = null
+        var hal: AdbStream? = null
         try {
             check(adb.shell("echo ZFoldDuo").allOutput.trim() == "ZFoldDuo")
             val controlAdb = Kadb.create(host, port, connectTimeout = 5_000)
@@ -49,16 +50,19 @@ class EmbeddedAdbAngleClient(
             probe = adb.open("shell:$ANGLE_PROBE_COMMAND")
             angle = adb.open("shell:$ANGLE_LOG_COMMAND")
             live = adb.open("shell:$LIVE_CAPTURE_COMMAND")
-            val started = Session(adb, controlAdb, probe, angle, live)
+            hal = adb.open("shell:$HAL_ANGLE_COMMAND")
+            val started = Session(adb, controlAdb, probe, angle, live, hal)
             session = started
             Thread({ watchProbe(started) }, "ZFoldDuo-private-probe").start()
             Thread({ readPrivateAngle(started) }, "ZFoldDuo-private-angle").start()
             Thread({ readLiveCapture(started) }, "ZFoldDuo-live-capture").start()
+            Thread({ readHalAngle(started) }, "ZFoldDuo-hal-angle").start()
             onStatus("Reading Samsung hinge sensor")
         } catch (error: Throwable) {
             runCatching { probe?.close() }
             runCatching { angle?.close() }
             runCatching { live?.close() }
+            runCatching { hal?.close() }
             runCatching { control?.close() }
             runCatching { adb.close() }
             throw error
@@ -71,6 +75,7 @@ class EmbeddedAdbAngleClient(
         runCatching { current.probe.close() }
         runCatching { current.angle.close() }
         runCatching { current.live.close() }
+        runCatching { current.hal.close() }
         runCatching { current.control.close() }
         runCatching { current.adb.close() }
     }
@@ -103,6 +108,22 @@ class EmbeddedAdbAngleClient(
         }
     }
 
+    private fun readHalAngle(current: Session) {
+        var count = 0
+        try {
+            while (session === current) {
+                val line = current.hal.source.readUtf8Line() ?: error("Samsung sensor HAL stream ended")
+                val sample = SamsungHalAngleParser.parse(line) ?: continue
+                val now = SystemClock.elapsedRealtimeNanos()
+                if (sample.sampleNanos > now || now - sample.sampleNanos > 2_000_000_000L) continue
+                onAngle(sample.angle, sample.sampleNanos)
+                if (++count == 1) onStatus("Samsung HAL hinge readings available")
+            }
+        } catch (error: Throwable) {
+            if (session === current) onStatus("Samsung HAL angle feed unavailable: ${safeMessage(error)}")
+        }
+    }
+
     private fun readLiveCapture(current: Session) {
         // Preserve the capture subprocess's final diagnostic lines. Android 17
         // may reject hidden API calls before "live capture ready" is printed.
@@ -128,6 +149,7 @@ class EmbeddedAdbAngleClient(
         runCatching { current.probe.close() }
         runCatching { current.angle.close() }
         runCatching { current.live.close() }
+        runCatching { current.hal.close() }
         runCatching { current.control.close() }
         runCatching { current.adb.close() }
         onStatus(message)
@@ -139,6 +161,7 @@ class EmbeddedAdbAngleClient(
         val probe: AdbStream,
         val angle: AdbStream,
         val live: AdbStream,
+        val hal: AdbStream,
     )
 
     companion object {
@@ -152,6 +175,7 @@ class EmbeddedAdbAngleClient(
             "logcat -v brief -T 1 --regex='(onCommand: action\\[$ANGLE_ACTION\\], mCurrentAngle|" +
                 "unregisterSensor: mIsSensorRegistered\\[true\\])' " +
                 "'SprWallpaper|FoldInteractive':I '*:S'"
+        private const val HAL_ANGLE_COMMAND = "logcat -v epoch -T 1 -s sensors-hal:I '*:S'"
         private const val LIVE_CAPTURE_COMMAND =
             "echo zfold-capture-start; echo zfold-capture-invoking-app-process; " +
                 "CLASSPATH=\$(pm path com.foldduo.hinge | head -n 1 | cut -d: -f2) " +
