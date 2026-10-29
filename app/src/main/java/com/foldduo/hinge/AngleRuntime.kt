@@ -50,6 +50,8 @@ object AngleRuntime {
     val diagnostics = _diagnostics.asStateFlow()
     private val _sensorInventory = MutableStateFlow("Scanning device sensors")
     val sensorInventory = _sensorInventory.asStateFlow()
+    private val _adbDiagnostics = MutableStateFlow("ADB: not connected")
+    val adbDiagnostics = _adbDiagnostics.asStateFlow()
 
     val status = _status.asStateFlow()
     val sample = _sample.asStateFlow()
@@ -134,6 +136,7 @@ object AngleRuntime {
         KadbCert.configure(OkioFilePrivateKeyStore(app.filesDir.resolve("adb_private_key.pem").path.toPath()))
         client = EmbeddedAdbAngleClient(
             onStatus = {
+                _adbDiagnostics.value = it
                 if (!localHingeSensorActive) _status.value = it
                 if (!localHingeSensorActive && (it.contains("disconnected", ignoreCase = true) || it.contains("stopped", ignoreCase = true))) _sample.value = null
             },
@@ -201,8 +204,10 @@ object AngleRuntime {
                     try {
                         if (!localHingeSensorActive) _sample.value = null
                         client.connect(host, port)
-                    } catch (_: Throwable) {
-                        _status.value = "ADB pairing required"
+                    } catch (error: Throwable) {
+                        val reason = safeMessage(error)
+                        _adbDiagnostics.value = "ADB connection failed: $reason"
+                        if (!localHingeSensorActive) _status.value = "ADB connection failed: $reason"
                     } finally {
                         connecting.set(false)
                     }
