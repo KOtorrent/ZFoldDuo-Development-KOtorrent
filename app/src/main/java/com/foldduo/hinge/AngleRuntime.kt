@@ -56,6 +56,7 @@ object AngleRuntime {
     val pairEndpoint = _pairEndpoint.asStateFlow()
     val connectEndpoint = _connectEndpoint.asStateFlow()
 
+    private val angleSelector = AngleSourceSelector()
     private var initialized = false
     @Volatile private var localHingeSensorActive = false
     @Volatile private var lastPublicAngle = Float.NaN
@@ -115,9 +116,9 @@ object AngleRuntime {
                     lastPublicAngle = angle
                     val now = SystemClock.elapsedRealtimeNanos()
                     // Prioritize recent private readings if Samsung's public sensor is coarse.
-                    if (now - privateAngleTimeNanos > 2_000_000_000L) {
+                    angleSelector.onPublic(angle, now)?.let { accepted ->
                         activeSource = "public"
-                        _sample.value = AngleSample(angle.coerceIn(0f, 180f), now)
+                        _sample.value = AngleSample(accepted, now)
                     }
                     updateDiagnostics()
                 }
@@ -135,8 +136,10 @@ object AngleRuntime {
             onAngle = { angle, timestamp ->
                 lastPrivateAngle = angle
                 privateAngleTimeNanos = timestamp
-                activeSource = "private"
-                _sample.value = AngleSample(angle, timestamp)
+                angleSelector.onPrivate(angle, timestamp)?.let { accepted ->
+                    activeSource = "private"
+                    _sample.value = AngleSample(accepted, timestamp)
+                }
                 updateDiagnostics()
             },
         )
