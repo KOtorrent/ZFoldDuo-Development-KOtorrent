@@ -64,4 +64,12 @@ class AngleSourceSelectorTest {
         // No pre-private sensor event should be accepted over a later private sample.
         assertNull(selector.onPublic(180f, 7_000_000_000L))
     }
+
+    @Test fun privateSensorRejectsOutOfOrderAndDuplicateTimestamps() {
+        val selector = AngleSourceSelector()
+        assertEquals(175f, selector.onPrivate(175f, 5_000L))
+        assertNull(selector.onPrivate(90f, 4_900L))
+        assertNull(selector.onPrivate(90f, 5_000L))
+        assertEquals(170f, selector.onPrivate(170f, 5_100L))
+    }
 }
