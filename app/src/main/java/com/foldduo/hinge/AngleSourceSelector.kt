@@ -19,7 +19,7 @@ class AngleSourceSelector(
     fun onPublic(angle: Float, timestampNanos: Long): Float? {
         if (!angle.isFinite() || angle !in 0f..180f) return null
         val last = lastPrivateTimeNanos
-        if (last != null && timestampNanos >= last && timestampNanos - last <= privateFreshNanos) return null
+        if (last != null && (timestampNanos < last || timestampNanos - last <= privateFreshNanos)) return null
         return angle
     }
 }
